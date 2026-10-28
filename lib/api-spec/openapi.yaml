@@ -3,13 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Recipe discovery, food benefits, member favorites, and admin tools.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: recipes
+    description: Public recipe discovery and protected recipe management.
+  - name: foods
+    description: Food nutrition and health benefits.
+  - name: favorites
+    description: Member recipe favorites.
+  - name: admin
+    description: Protected admin access and dashboard summaries.
+  - name: contact
+    description: Visitor contact messages.
+  - name: storage
+    description: App Storage uploads and object serving.
+  - name: Auth
+    description: Browser authentication endpoints.
 paths:
   /healthz:
     get:
@@ -24,7 +38,461 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /recipes:
+    get:
+      operationId: listRecipes
+      tags: [recipes]
+      summary: Search and filter published recipes
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: category
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/RecipeCategory" }
+      responses:
+        "200":
+          description: Matching recipes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Recipe" }
+    post:
+      operationId: createRecipe
+      tags: [recipes]
+      summary: Create a recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeInput" }
+      responses:
+        "201":
+          description: Recipe created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /recipes/featured:
+    get:
+      operationId: getFeaturedRecipe
+      tags: [recipes]
+      summary: Get the featured recipe
+      responses:
+        "200":
+          description: Featured recipe, or null when none is set.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Recipe"
+                  - type: "null"
+  /recipes/popular:
+    get:
+      operationId: getPopularRecipes
+      tags: [recipes]
+      summary: Get popular recipes
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 12, default: 6 }
+      responses:
+        "200":
+          description: Recipes ordered by saved-favorite count.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Recipe" }
+  /recipes/{id}:
+    get:
+      operationId: getRecipe
+      tags: [recipes]
+      summary: Get a recipe by ID
+      parameters:
+        - $ref: "#/components/parameters/RecipeId"
+      responses:
+        "200":
+          description: Recipe details.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateRecipe
+      tags: [recipes]
+      summary: Update a recipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeUpdate" }
+      responses:
+        "200":
+          description: Updated recipe.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recipe" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteRecipe
+      tags: [recipes]
+      summary: Delete a recipe
+      parameters:
+        - $ref: "#/components/parameters/RecipeId"
+      responses:
+        "204": { description: Recipe deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /recipes/{id}/favorite:
+    put:
+      operationId: saveFavorite
+      tags: [favorites]
+      summary: Save a recipe to the current member's favorites
+      parameters:
+        - $ref: "#/components/parameters/RecipeId"
+      responses:
+        "200":
+          description: Favorite state saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoriteState" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: removeFavorite
+      tags: [favorites]
+      summary: Remove a recipe from the current member's favorites
+      parameters:
+        - $ref: "#/components/parameters/RecipeId"
+      responses:
+        "200":
+          description: Favorite state removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoriteState" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /favorites:
+    get:
+      operationId: listFavorites
+      tags: [favorites]
+      summary: List the current member's favorite recipes
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Favorite recipes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Recipe" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /foods:
+    get:
+      operationId: listFoods
+      tags: [foods]
+      summary: Search food benefits
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching foods.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Food" }
+    post:
+      operationId: createFood
+      tags: [foods]
+      summary: Add a food benefit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FoodInput" }
+      responses:
+        "201":
+          description: Food benefit created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Food" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /foods/{id}:
+    patch:
+      operationId: updateFood
+      tags: [foods]
+      summary: Update a food benefit
+      parameters:
+        - $ref: "#/components/parameters/FoodId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FoodUpdate" }
+      responses:
+        "200":
+          description: Updated food benefit.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Food" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteFood
+      tags: [foods]
+      summary: Delete a food benefit
+      parameters:
+        - $ref: "#/components/parameters/FoodId"
+      responses:
+        "204": { description: Food benefit deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/access:
+    get:
+      operationId: getAdminAccess
+      tags: [admin]
+      summary: Check whether the current member is the configured admin
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Admin access status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccess" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /admin/summary:
+    get:
+      operationId: getAdminSummary
+      tags: [admin]
+      summary: Get admin dashboard totals
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Recipe and food totals.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /contact:
+    post:
+      operationId: sendContactMessage
+      tags: [contact]
+      summary: Save a contact form submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactInput" }
+      responses:
+        "201":
+          description: Message received.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactReceipt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a private App Storage upload URL
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UploadRequest" }
+      responses:
+        "200":
+          description: Signed upload URL and normalized object path.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStoredObject
+      tags: [storage]
+      summary: Serve a stored image
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stored object bytes.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /storage/public-objects/{filePath}:
+    get:
+      operationId: getPublicObject
+      tags: [storage]
+      summary: Serve a public App Storage asset
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Public asset bytes.
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /auth/user:
+    get:
+      operationId: getCurrentAuthUser
+      tags: [Auth]
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Authentication state resolved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUserEnvelope" }
+  /login:
+    get:
+      operationId: beginBrowserLogin
+      tags: [Auth]
+      summary: Start the browser login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect to the authentication provider. }
+  /callback:
+    get:
+      operationId: handleBrowserLoginCallback
+      tags: [Auth]
+      summary: Complete browser login
+      responses:
+        "302": { description: Redirect to the requested page. }
+  /logout:
+    get:
+      operationId: logoutBrowserSession
+      tags: [Auth]
+      summary: Clear the browser session
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+        - name: returnTo
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect after logout. }
+  /mobile-auth/token-exchange:
+    post:
+      operationId: exchangeMobileAuthorizationCode
+      tags: [Auth]
+      summary: Exchange a mobile authorization code for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MobileTokenExchangeRequest" }
+      responses:
+        "200":
+          description: Mobile session created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MobileTokenExchangeSuccess" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/BadRequest" }
+  /mobile-auth/logout:
+    post:
+      operationId: logoutMobileSession
+      tags: [Auth]
+      summary: Clear a mobile session
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+      responses:
+        "200":
+          description: Mobile session cleared.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogoutSuccess" }
 components:
+  parameters:
+    RecipeId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    FoodId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema: { type: string }
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid input.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unauthorized:
+      description: Sign-in required.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Forbidden:
+      description: Access denied.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +501,177 @@ components:
           type: string
       required:
         - status
+    RecipeCategory:
+      type: string
+      enum: [Breakfast, Lunch, Dinner, Desserts, Healthy, Drinks, Snacks]
+    Recipe:
+      type: object
+      required: [id, title, category, prepMinutes, cookMinutes, servings, calories, ingredients, instructions, healthBenefits, imagePath, featured, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { $ref: "#/components/schemas/RecipeCategory" }
+        prepMinutes: { type: integer }
+        cookMinutes: { type: integer }
+        servings: { type: integer }
+        calories: { type: integer }
+        ingredients:
+          type: array
+          items: { type: string }
+        instructions:
+          type: array
+          items: { type: string }
+        healthBenefits: { type: string }
+        imagePath: { type: ["string", "null"] }
+        featured: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    RecipeInput:
+      type: object
+      required: [title, category, prepMinutes, cookMinutes, servings, calories, ingredients, instructions, healthBenefits]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 160 }
+        category: { $ref: "#/components/schemas/RecipeCategory" }
+        prepMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        cookMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        servings: { type: integer, minimum: 1, maximum: 100 }
+        calories: { type: integer, minimum: 0, maximum: 10000 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1, maxLength: 300 }
+        instructions:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1, maxLength: 2000 }
+        healthBenefits: { type: string, minLength: 1, maxLength: 2000 }
+        imagePath: { type: ["string", "null"] }
+        featured: { type: boolean, default: false }
+    RecipeUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 2, maxLength: 160 }
+        category: { $ref: "#/components/schemas/RecipeCategory" }
+        prepMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        cookMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        servings: { type: integer, minimum: 1, maximum: 100 }
+        calories: { type: integer, minimum: 0, maximum: 10000 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1, maxLength: 300 }
+        instructions:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1, maxLength: 2000 }
+        healthBenefits: { type: string, minLength: 1, maxLength: 2000 }
+        imagePath: { type: ["string", "null"] }
+        featured: { type: boolean }
+    Food:
+      type: object
+      required: [id, name, caloriesPer100g, benefits, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        caloriesPer100g: { type: integer }
+        benefits: { type: string }
+        createdAt: { type: string, format: date-time }
+    FoodInput:
+      type: object
+      required: [name, caloriesPer100g, benefits]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        caloriesPer100g: { type: integer, minimum: 0, maximum: 900 }
+        benefits: { type: string, minLength: 1, maxLength: 2000 }
+    FoodUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        caloriesPer100g: { type: integer, minimum: 0, maximum: 900 }
+        benefits: { type: string, minLength: 1, maxLength: 2000 }
+    FavoriteState:
+      type: object
+      required: [recipeId, isFavorite]
+      properties:
+        recipeId: { type: integer }
+        isFavorite: { type: boolean }
+    AdminAccess:
+      type: object
+      required: [isAdmin]
+      properties:
+        isAdmin: { type: boolean }
+    AdminSummary:
+      type: object
+      required: [recipeCount, foodCount, favoriteCount]
+      properties:
+        recipeCount: { type: integer }
+        foodCount: { type: integer }
+        favoriteCount: { type: integer }
+    ContactInput:
+      type: object
+      required: [name, email, subject, message]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254 }
+        subject: { type: string, minLength: 2, maxLength: 160 }
+        message: { type: string, minLength: 5, maxLength: 5000 }
+    ContactReceipt:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, const: true }
+    UploadRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        size: { type: integer, minimum: 1, maximum: 10485760 }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+    UploadResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string }
+        metadata: { $ref: "#/components/schemas/UploadRequest" }
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id: { type: string }
+        email: { type: ["string", "null"], format: email }
+        firstName: { type: ["string", "null"] }
+        lastName: { type: ["string", "null"] }
+        profileImageUrl: { type: ["string", "null"] }
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code: { type: string, minLength: 1 }
+        code_verifier: { type: string, minLength: 1 }
+        redirect_uri: { type: string, minLength: 1, format: uri }
+        state: { type: string, minLength: 1 }
+        nonce: { type: string, minLength: 1 }
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, const: true }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
 
