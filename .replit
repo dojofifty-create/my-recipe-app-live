@@ -23,3 +23,6 @@ timeoutMs = 20000
 
 [userenv.shared]
 ADMIN_EMAIL = "mkhel749@gmail.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-af123c9b-d1d7-4744-be22-fd3db7f626fd"
