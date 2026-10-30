@@ -6,104 +6,8 @@ export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
-const MOCK_RECIPES = [
-  {
-    id: 1,
-    title: "Lemon Herb Roasted Salmon",
-    description: "Tender flaky salmon with fresh herbs, lemon slices, and crisp asparagus.",
-    category: "Dinner",
-    cookTime: "25 mins",
-    servings: 4,
-    calories: 420,
-    rating: 4.9,
-    reviewsCount: 128,
-    isFeatured: true,
-    isPopular: true,
-    imagePath: "/recipes/lemon-herb-salmon.jpg",
-    ingredients: ["Salmon fillets", "Fresh dill", "Garlic", "Lemon", "Olive oil", "Asparagus"],
-    instructions: ["Preheat oven to 400°F (200°C).", "Season salmon with salt, pepper, garlic, and dill.", "Place on baking sheet with asparagus and lemon slices.", "Bake for 15-20 minutes until cooked through."]
-  },
-  {
-    id: 2,
-    title: "Fluffy Berry Buttermilk Pancakes",
-    description: "Golden buttermilk pancakes topped with sweet berry compote and maple syrup.",
-    category: "Breakfast",
-    cookTime: "20 mins",
-    servings: 4,
-    calories: 350,
-    rating: 4.8,
-    reviewsCount: 95,
-    isFeatured: false,
-    isPopular: true,
-    imagePath: "/recipes/berry-pancakes.jpg",
-    ingredients: ["Flour", "Buttermilk", "Eggs", "Baking powder", "Butter", "Fresh berries", "Maple syrup"],
-    instructions: ["Whisk dry ingredients together.", "Fold in buttermilk and beaten eggs gently.", "Cook on a heated skillet until bubbly, flip and finish.", "Serve warm with berry toppings."]
-  },
-  {
-    id: 3,
-    title: "Rich Dark Chocolate Tart",
-    description: "Silky chocolate ganache filling nestled inside a buttery chocolate crust.",
-    category: "Desserts",
-    cookTime: "45 mins",
-    servings: 8,
-    calories: 480,
-    rating: 5.0,
-    reviewsCount: 210,
-    isFeatured: false,
-    isPopular: true,
-    imagePath: "/recipes/chocolate-tart.jpg",
-    ingredients: ["Dark chocolate 70%", "Heavy cream", "Butter", "Flour", "Cocoa powder", "Sea salt"],
-    instructions: ["Bake tart shell until crisp.", "Warm cream and pour over chopped chocolate to form ganache.", "Pour into tart shell and chill until set."]
-  },
-  {
-    id: 4,
-    title: "Green Goddess Glow Smoothie",
-    description: "Invigorating blend of crisp green apple, spinach, ginger, and coconut water.",
-    category: "Drinks",
-    cookTime: "5 mins",
-    servings: 2,
-    calories: 180,
-    rating: 4.7,
-    reviewsCount: 64,
-    isFeatured: false,
-    isPopular: false,
-    imagePath: "/recipes/green-smoothie.jpg",
-    ingredients: ["Fresh baby spinach", "Green apple", "Ginger root", "Cucumber", "Coconut water", "Chia seeds"],
-    instructions: ["Add all ingredients to a high-speed blender.", "Blend on high until silky smooth.", "Pour over ice and serve."]
-  },
-  {
-    id: 5,
-    title: "Traditional Shakshuka with Feta",
-    description: "Poached eggs in a fragrant spiced tomato and bell pepper sauce.",
-    category: "Breakfast",
-    cookTime: "30 mins",
-    servings: 3,
-    calories: 310,
-    rating: 4.9,
-    reviewsCount: 142,
-    isFeatured: false,
-    isPopular: true,
-    imagePath: "/recipes/shakshuka.jpg",
-    ingredients: ["Eggs", "Canned tomatoes", "Bell peppers", "Onion", "Cumin", "Paprika", "Feta cheese"],
-    instructions: ["Sauté onions and peppers until tender.", "Simmer with tomatoes and aromatic spices.", "Crack eggs directly into simmering sauce and cover until set."]
-  },
-  {
-    id: 6,
-    title: "Roasted Harvest Vegetable Bowl",
-    description: "Warm quinoa layered with caramelized vegetables, tahini dressing, and seeds.",
-    category: "Healthy",
-    cookTime: "35 mins",
-    servings: 2,
-    calories: 390,
-    rating: 4.8,
-    reviewsCount: 88,
-    isFeatured: false,
-    isPopular: false,
-    imagePath: "/recipes/roasted-vegetable-bowl.jpg",
-    ingredients: ["Quinoa", "Sweet potatoes", "Chickpeas", "Kale", "Tahini", "Lemon juice", "Pumpkin seeds"],
-    instructions: ["Roast sweet potatoes and chickpeas until crispy.", "Assemble over warm cooked quinoa with fresh kale.", "Drizzle generously with tahini sauce."]
-  }
-];
+const SUPABASE_URL = "https://gqdvpvorwysjkqjcpyyf.supabase.co";
+const SUPABASE_ANON_KEY = "Sb_publishable_5PEB8Po2zx1lYm1vWzV06Q_JQU7rCx6";
 
 export function setBaseUrl(_url: string | null): void {}
 export function setAuthTokenGetter(_getter: AuthTokenGetter | null): void {}
@@ -123,30 +27,68 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
+async function requestSupabase(endpoint: string, options: RequestInit = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": options.method === "POST" ? "return=representation" : "return=minimal",
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    throw new ApiError(`Supabase request failed: ${res.statusText}`);
+  }
+  return res.json().catch(() => null);
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
-  _options: CustomFetchOptions = {},
+  options: CustomFetchOptions = {},
 ): Promise<T> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const method = (options.method || "GET").toUpperCase();
 
+  // جلب وصفة مميزة
   if (url.includes("/api/recipes/featured")) {
-    return (MOCK_RECIPES[0] ?? null) as T;
+    const data = await requestSupabase("recipes?isFeatured=eq.true&limit=1");
+    if (data && data.length > 0) return data[0] as T;
+    const fallback = await requestSupabase("recipes?limit=1");
+    return (fallback && fallback[0] ? fallback[0] : null) as T;
   }
 
+  // جلب الوصفات الشائعة
   if (url.includes("/api/recipes/popular")) {
-    return MOCK_RECIPES.filter((r) => r.isPopular) as T;
+    const data = await requestSupabase("recipes?isPopular=eq.true&order=id.desc");
+    return (data || []) as T;
   }
 
+  // إضافة وصفة جديدة
+  if (url.includes("/api/recipes") && method === "POST") {
+    const bodyData = typeof options.body === "string" ? JSON.parse(options.body) : options.body;
+    const inserted = await requestSupabase("recipes", {
+      method: "POST",
+      body: JSON.stringify(bodyData),
+    });
+    return (inserted && inserted[0] ? inserted[0] : inserted) as T;
+  }
+
+  // جلب تفاصيل وصفة واحدة برقمها
   if (url.includes("/api/recipes/")) {
-    const id = parseInt(url.split("/api/recipes/")[1] ?? "1", 10);
-    const recipe = MOCK_RECIPES.find((r) => r.id === id) ?? MOCK_RECIPES[0];
-    return recipe as T;
+    const id = url.split("/api/recipes/")[1];
+    const data = await requestSupabase(`recipes?id=eq.${id}&limit=1`);
+    return (data && data[0] ? data[0] : null) as T;
   }
 
+  // جلب كافة الوصفات
   if (url.includes("/api/recipes")) {
-    return MOCK_RECIPES as T;
+    const data = await requestSupabase("recipes?order=id.desc");
+    return (data || []) as T;
   }
 
+  // مسارات إضافية
   if (url.includes("/api/favorites")) {
     return [] as T;
   }
@@ -156,7 +98,8 @@ export async function customFetch<T = unknown>(
   }
 
   if (url.includes("/api/admin")) {
-    return { recipesCount: MOCK_RECIPES.length, usersCount: 1 } as T;
+    const data = await requestSupabase("recipes");
+    return { recipesCount: (data || []).length, usersCount: 1 } as T;
   }
 
   return [] as T;
