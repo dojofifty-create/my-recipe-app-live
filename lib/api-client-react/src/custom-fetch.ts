@@ -7,7 +7,7 @@ export type BodyType<T> = T;
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const SUPABASE_URL = "https://gqdvpvorwysjkqjcpyyf.supabase.co";
-const SUPABASE_ANON_KEY = "Sb_publishable_5PEB8Po2zx1lYm1vWzV06Q_JQU7rCx6";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZHZwdm9yd3lzamtxamNweXlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzODczOTYsImV4cCI6MjEwODk2MzM5Nn0.xxb_S3Wvn3IyG1mRIeUMtltjqRo_RyVf-FZ_8wCAfVY";
 
 export function setBaseUrl(_url: string | null): void {}
 export function setAuthTokenGetter(_getter: AuthTokenGetter | null): void {}
